@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Book Search - Find Your Next Book</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.7)),
+                        url('/static/HomePage2.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            padding-top: 15vh;
+        }
+
+        .search-container {
+            text-align: center;
+            background: rgba(45, 45, 45, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 90%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #4CAF50;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .tagline {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            color: #aaa;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        #search-input {
+            padding: 12px 25px;
+            width: 100%;
+            max-width: 600px;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 30px;
+            background-color: rgba(61, 61, 61, 0.8);
+            color: white;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #search-input:focus {
+            background-color: rgba(61, 61, 61, 0.95);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+        }
+
+        #search-input::placeholder {
+            color: #888;
+        }
+
+        #search-button {
+            padding: 12px 30px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #search-button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+                padding-top: 10vh;
+            }
+            
+            .search-container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            #search-button {
+                width: 100%;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="search-container">
+            <h1>Search Your E-Book</h1>
+            <p class="tagline">Discover millions of eBooks at your fingertips</p>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Search for books, authors, or topics...">
+                <button id="search-button">Search</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('search-button').addEventListener('click', () => {
+            const query = document.getElementById('search-input').value;
+            if (query) {
+                window.location.href = `/results.html?query=${encodeURIComponent(query)}`;
+            }
+        });
+
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = document.getElementById('search-input').value;
+                if (query) {
+                    window.location.href = `/results.html?query=${encodeURIComponent(query)}`;
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,35 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "main.py",
+            "use": "@vercel/python"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "main.py"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "main.py"
+        }
+    ],
+    "env": {
+        "PYTHONUNBUFFERED": "1"
+    },
+    "functions": {
+        "api/*.py": {
+            "memory": 1024,
+            "maxDuration": 10
+        }
+    },
+    "regions": ["bom1"],
+    "functions": {
+        "main.py": {
+            "memory": 1024,
+            "maxDuration": 10
+        }
+    }
+} 

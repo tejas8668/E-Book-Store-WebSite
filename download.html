@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .download-container {
+            text-align: center;
+            padding: 40px;
+            background-color: #2d2d2d;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+        .book-title {
+            color: #ffffff;
+            margin-bottom: 30px;
+            font-size: 20px;
+        }
+        .download-button {
+            display: inline-block;
+            padding: 15px 40px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        .download-button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+        .back-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #666;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .back-button:hover {
+            background-color: #555;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="download-container">
+        <h1>Download Book</h1>
+        <div class="book-title" id="book-title"></div>
+        <a href="#" id="download-link" class="download-button" target="_blank">Download Now</a>
+        <br>
+        <a href="#" id="back-link" class="back-button">Back to Results</a>
+    </div>
+
+    <script>
+        // Get parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const title = urlParams.get('title');
+        const downloadLink = urlParams.get('download');
+        const backUrl = urlParams.get('back');
+
+        // Set book title
+        document.getElementById('book-title').textContent = decodeURIComponent(title || 'Book');
+
+        // Set download link
+        const downloadButton = document.getElementById('download-link');
+        if (downloadLink) {
+            downloadButton.href = `https://www.pdfdrive.com${decodeURIComponent(downloadLink)}`;
+        } else {
+            downloadButton.style.display = 'none';
+        }
+
+        // Set back link
+        const backButton = document.getElementById('back-link');
+        if (backUrl) {
+            backButton.href = decodeURIComponent(backUrl);
+        } else {
+            backButton.style.display = 'none';
+        }
+    </script>
+</body>
+</html> 
