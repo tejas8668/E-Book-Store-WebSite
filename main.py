@@ -8,8 +8,8 @@ import asyncio
 from typing import List, Optional
 import json
 import os
-from playwright.async_api import async_playwright
 from pydantic import BaseModel
+import re
 
 app = FastAPI()
 
@@ -47,41 +47,46 @@ class DownloadRequest(BaseModel):
 async def get_download_link(request: DownloadRequest):
     try:
         print(f"Received download link request for URL: {request.url}")
-        # Use browserless mode for Vercel
-        async with async_playwright() as p:
-            # Launch browser in no-sandbox mode for Vercel
-            print("Launching browser...")
-            browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
-            context = await browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                viewport={'width': 1280, 'height': 800}
-            )
-            page = await context.new_page()
-            
+        # We'll directly fetch the page content and parse it instead of using Playwright
+        
+        # Create a session
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive',
+            'Referer': 'https://www.pdfdrive.com/',
+        }
+        
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
-                print(f"Navigating to: {request.url}")
-                # Add timeout for navigation
-                await page.goto(request.url, timeout=60000, wait_until="networkidle")
+                print(f"Fetching page: {request.url}")
+                async with session.get(request.url, headers=headers) as response:
+                    if response.status != 200:
+                        print(f"Failed to fetch page. Status: {response.status}")
+                        raise HTTPException(status_code=response.status, detail=f"Failed to fetch page from PDFDrive")
+                    
+                    html = await response.text()
+                    print(f"Page content length: {len(html)}")
                 
-                # Take screenshot for debugging (in development)
-                # await page.screenshot(path="page.png")
+                # Parse the HTML content
+                soup = BeautifulSoup(html, 'html.parser')
                 
-                print("Page loaded, page title:", await page.title())
-                
-                # Wait for the download button to appear with longer timeout
-                print("Waiting for download button...")
+                # Look for download button
+                download_button = None
                 selectors = [
-                    'a[href*="download"]', 
-                    'a[id="download-button-link"]',
+                    'a#download-button-link',
+                    'a[href*="download"]',
                     'a[class*="download"]'
                 ]
                 
-                download_button = None
                 for selector in selectors:
                     try:
                         print(f"Trying selector: {selector}")
-                        download_button = await page.wait_for_selector(selector, state="visible", timeout=20000)
-                        if download_button:
+                        elements = soup.select(selector)
+                        if elements:
+                            download_button = elements[0]
                             print(f"Found download button with selector: {selector}")
                             break
                     except Exception as e:
@@ -89,8 +94,8 @@ async def get_download_link(request: DownloadRequest):
                 
                 if download_button:
                     print("Download button found!")
-                    # Get the href attribute - THIS IS THE ACTUAL DOWNLOAD LINK
-                    download_url = await download_button.get_attribute('href')
+                    # Get the href attribute
+                    download_url = download_button.get('href', '')
                     print(f"Download URL: {download_url}")
                     
                     # Ensure we have a valid download URL
@@ -103,21 +108,29 @@ async def get_download_link(request: DownloadRequest):
                         print(f"Invalid download URL format: {download_url}")
                         raise HTTPException(status_code=400, detail=f"Invalid download URL format: {download_url}")
                 else:
-                    # Try to get page content for debugging
-                    page_content = await page.content()
-                    print(f"Page content length: {len(page_content)}")
-                    print(f"Page content snippet: {page_content[:500]}...")
+                    # Try to find any link that might contain 'download'
+                    all_links = soup.find_all('a')
+                    for link in all_links:
+                        href = link.get('href', '')
+                        if 'download' in href.lower():
+                            full_download_url = href
+                            if href.startswith('/'):
+                                full_download_url = f"https://www.pdfdrive.com{href}"
+                            print(f"Found alternate download URL: {full_download_url}")
+                            return {"download_url": full_download_url}
                     
                     print("Download button not found after trying all selectors")
+                    snippet = html[:500].replace('\n', ' ').replace('\r', '')
+                    print(f"Page content snippet: {snippet}...")
                     raise HTTPException(status_code=404, detail="Download button not found")
                     
+            except HTTPException:
+                raise
             except Exception as e:
-                print(f"Error in Playwright: {str(e)}")
+                print(f"Error fetching page: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
-            finally:
-                await browser.close()
     except Exception as e:
-        print(f"Error initializing Playwright: {str(e)}")
+        print(f"Error in get_download_link: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 class Book:
