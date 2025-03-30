@@ -30,11 +30,5 @@
         "PYTHONUNBUFFERED": "1",
         "NODE_TLS_REJECT_UNAUTHORIZED": "0"
     },
-    "regions": ["bom1"],
-    "functions": {
-        "main.py": {
-            "memory": 2048,
-            "maxDuration": 60
-        }
-    }
+    "regions": ["bom1"]
 } 
