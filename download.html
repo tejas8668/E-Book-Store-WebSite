@@ -183,6 +183,8 @@
             
             try {
                 console.log('Calling API to get download link, attempt', retryCount + 1);
+                console.log('Download link from URL:', downloadLink);
+                
                 // Call your backend API to get the final download link
                 const response = await fetch('/api/get-download-link', {
                     method: 'POST',
@@ -190,7 +192,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        url: `https://www.pdfdrive.com${decodeURIComponent(downloadLink)}`
+                        url: decodeURIComponent(downloadLink)
                     })
                 });
 
@@ -203,9 +205,18 @@
                 // Show popup with download link
                 if (data.download_url) {
                     finalDownloadLink.href = data.download_url;
+                    
+                    // Set up the download attribute and filename
+                    const filename = decodeURIComponent(title || 'book') + '.pdf';
+                    finalDownloadLink.setAttribute('download', filename);
+                    
+                    // Open the popup
                     popup.style.display = 'block';
                     popupOverlay.style.display = 'block';
                     retryCount = 0; // Reset retry count on success
+                    
+                    // Open the PDF directly in a new tab as well
+                    window.open(data.download_url, '_blank');
                 } else {
                     handleError('No download URL in response');
                 }

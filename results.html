@@ -225,9 +225,9 @@
                     const bookCard = document.createElement('div');
                     bookCard.className = 'book-card';
                     bookCard.innerHTML = `
-                        <img src="${book.image_url}" alt="${book.title}" onerror="this.src='static/placeholder.jpg'">
+                        <img src="${book.image_url}" alt="${book.title}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzRDQUY1MCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItYm9vayI+PHBhdGggZD0iTTQgMTkuNUEyLjUgMi41IDAgMCAxIDYuNSAxN0gyMCI+PC9wYXRoPjxwYXRoIGQ9Ik02LjUgMkgyMHYyMEg2LjVBMi41IDIuNSAwIDAgMSA0IDE5LjV2LTE1QTIuNSAyLjUgMCAwIDEgNi41IDJ6Ij48L3BhdGg+PC9zdmc+'">
                         <h3>${book.title}</h3>
-                        <a href="/download.html?title=${encodeURIComponent(book.title)}&download=${encodeURIComponent(book.download_link)}&back=${encodeURIComponent(window.location.href)}" class="download-link">Download</a>
+                        <a href="/download.html?title=${encodeURIComponent(book.title)}&download=${encodeURIComponent(book.download_link || book.link)}&back=${encodeURIComponent(window.location.href)}" class="download-link">Download</a>
                     `;
                     resultsDiv.appendChild(bookCard);
                 });
