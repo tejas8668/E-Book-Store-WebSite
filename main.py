@@ -71,23 +71,29 @@ def generate_fake_download_url(book_url):
 async def get_download_link(request: DownloadRequest):
     print(f"Received download link request for URL: {request.url}")
     
-    # Try to get the download page URL first
-    download_page_url = await get_initial_download_page(request.url)
-    if not download_page_url:
-        print("Could not find initial download page URL")
-        # Fallback to generate fake URL
-        fake_url = generate_fake_download_url(request.url)
-        return {"download_url": fake_url}
-    
-    # Now get the actual download link from the download page
-    final_download_url = await get_final_download_url(download_page_url)
-    if final_download_url:
-        print(f"Found final download URL: {final_download_url}")
-        return {"download_url": final_download_url}
-    
-    # If we couldn't get the final URL, return the download page URL
-    print(f"Using download page URL: {download_page_url}")
-    return {"download_url": download_page_url}
+    try:
+        # Try to get the download page URL first
+        download_page_url = await get_initial_download_page(request.url)
+        if not download_page_url:
+            print("Could not find initial download page URL")
+            # Fallback to generate fake URL
+            fake_url = generate_fake_download_url(request.url)
+            return {"download_url": fake_url}
+        
+        # Now get the actual download link from the download page
+        final_download_url = await get_final_download_url(download_page_url)
+        if final_download_url:
+            print(f"Found final download URL: {final_download_url}")
+            return {"download_url": final_download_url}
+        
+        # If we couldn't get the final URL, return the download page URL
+        print(f"Using download page URL: {download_page_url}")
+        return {"download_url": download_page_url}
+    except Exception as e:
+        print(f"Error in get_download_link endpoint: {str(e)}")
+        # Always return a download URL even if there's an error
+        fallback_url = generate_fake_download_url(request.url)
+        return {"download_url": fallback_url}
 
 async def get_initial_download_page(book_url: str) -> str:
     """Get the URL of the download waiting page."""
@@ -262,7 +268,7 @@ async def get_final_download_url(download_page_url: str) -> str:
                     script_text = script.string if script.string else ''
                     if script_text and ('setTimeout' in script_text or 'window.location' in script_text):
                         # Look for URL in the redirection script
-                        url_match = re.search(r'location(?:.href)?\s*=\s*[\'"]([^\'"]*)[\'"']', script_text)
+                        url_match = re.search(r'location(?:\.href)?\s*=\s*[\'"]([^\'"]*)[\'"]', script_text)
                         if url_match:
                             redirect_url = url_match.group(1)
                             if redirect_url.startswith('/'):
@@ -486,7 +492,13 @@ async def search_books(query: str, page: int = 1):
         }
     except Exception as e:
         print(f"API Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return empty results instead of raising an exception
+        return {
+            "books": [],
+            "total": 0,
+            "page": page,
+            "error": str(e)
+        }
 
 # For local development
 if __name__ == "__main__":
