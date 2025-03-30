@@ -8,6 +8,8 @@ import asyncio
 from typing import List, Optional
 import json
 import os
+from playwright.async_api import async_playwright
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -37,6 +39,53 @@ async def read_results():
 @app.get("/download.html")
 async def read_download():
     return FileResponse("download.html")
+
+class DownloadRequest(BaseModel):
+    url: str
+
+@app.post("/api/get-download-link")
+async def get_download_link(request: DownloadRequest):
+    try:
+        # Use browserless mode for Vercel
+        async with async_playwright() as p:
+            # Launch browser in no-sandbox mode for Vercel
+            browser = await p.chromium.launch(headless=True, args=['--no-sandbox'])
+            context = await browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            )
+            page = await context.new_page()
+            
+            try:
+                print(f"Navigating to: {request.url}")
+                # Add timeout for navigation
+                await page.goto(request.url, timeout=60000)
+                
+                # Wait for the download button to appear with longer timeout
+                print("Waiting for download button...")
+                download_button = await page.wait_for_selector('a[href*="download"]', state="visible", timeout=60000)
+                
+                if download_button:
+                    print("Download button found!")
+                    # Get the href attribute - THIS IS THE ACTUAL DOWNLOAD LINK
+                    download_url = await download_button.get_attribute('href')
+                    print(f"Download URL: {download_url}")
+                    
+                    # Construct the full URL
+                    full_download_url = f"https://www.pdfdrive.com{download_url}"
+                    
+                    return {"download_url": full_download_url}
+                else:
+                    print("Download button not found")
+                    raise HTTPException(status_code=404, detail="Download button not found")
+                    
+            except Exception as e:
+                print(f"Error in Playwright: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+            finally:
+                await browser.close()
+    except Exception as e:
+        print(f"Error initializing Playwright: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 class Book:
     def __init__(self, title: str, image_url: str, link: str, download_link: str = None):

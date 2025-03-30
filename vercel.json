@@ -3,7 +3,11 @@
     "builds": [
         {
             "src": "main.py",
-            "use": "@vercel/python"
+            "use": "@vercel/python",
+            "config": {
+                "runtime": "python3.9",
+                "installCommand": "pip install -r requirements.txt && playwright install chromium --with-deps"
+            }
         }
     ],
     "routes": [
@@ -19,17 +23,5 @@
     "env": {
         "PYTHONUNBUFFERED": "1"
     },
-    "functions": {
-        "api/*.py": {
-            "memory": 1024,
-            "maxDuration": 10
-        }
-    },
-    "regions": ["bom1"],
-    "functions": {
-        "main.py": {
-            "memory": 1024,
-            "maxDuration": 10
-        }
-    }
+    "regions": ["bom1"]
 } 

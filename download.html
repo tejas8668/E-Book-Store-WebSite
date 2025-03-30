@@ -68,15 +68,81 @@
             background-color: #555;
             transform: scale(1.05);
         }
+        .loading-container {
+            display: none;
+            margin: 20px 0;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #4CAF50;
+            margin-top: 10px;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #2d2d2d;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            text-align: center;
+        }
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div class="download-container">
         <h1>Download Book</h1>
         <div class="book-title" id="book-title"></div>
-        <a href="#" id="download-link" class="download-button" target="_blank">Download Now</a>
+        <a href="#" id="download-link" class="download-button">Generate Download Link</a>
+        <div class="loading-container" id="loading-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Generating download link...</div>
+        </div>
         <br>
         <a href="#" id="back-link" class="back-button">Back to Results</a>
+    </div>
+
+    <div class="popup-overlay" id="popup-overlay"></div>
+    <div class="popup" id="popup">
+        <button class="close-button" id="close-popup">&times;</button>
+        <h2>Download Ready!</h2>
+        <p>Your download link is ready. Click below to download:</p>
+        <a href="#" id="final-download-link" class="download-button" target="_blank">Download Now</a>
     </div>
 
     <script>
@@ -89,14 +155,6 @@
         // Set book title
         document.getElementById('book-title').textContent = decodeURIComponent(title || 'Book');
 
-        // Set download link
-        const downloadButton = document.getElementById('download-link');
-        if (downloadLink) {
-            downloadButton.href = `https://www.pdfdrive.com${decodeURIComponent(downloadLink)}`;
-        } else {
-            downloadButton.style.display = 'none';
-        }
-
         // Set back link
         const backButton = document.getElementById('back-link');
         if (backUrl) {
@@ -104,6 +162,66 @@
         } else {
             backButton.style.display = 'none';
         }
+
+        // Handle download button click
+        const downloadButton = document.getElementById('download-link');
+        const loadingContainer = document.getElementById('loading-container');
+        const popup = document.getElementById('popup');
+        const popupOverlay = document.getElementById('popup-overlay');
+        const finalDownloadLink = document.getElementById('final-download-link');
+        const closePopupButton = document.getElementById('close-popup');
+
+        downloadButton.addEventListener('click', async () => {
+            if (!downloadLink) return;
+
+            // Show loading
+            loadingContainer.style.display = 'block';
+            downloadButton.style.display = 'none';
+
+            try {
+                // Call your backend API to get the final download link
+                const response = await fetch('/api/get-download-link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: `https://www.pdfdrive.com${decodeURIComponent(downloadLink)}`
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Hide loading
+                loadingContainer.style.display = 'none';
+                
+                // Show popup with download link
+                if (data.download_url) {
+                    finalDownloadLink.href = data.download_url;
+                    popup.style.display = 'block';
+                    popupOverlay.style.display = 'block';
+                } else {
+                    alert('Failed to generate download link. Please try again.');
+                    downloadButton.style.display = 'inline-block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                loadingContainer.style.display = 'none';
+                downloadButton.style.display = 'inline-block';
+            }
+        });
+
+        // Close popup
+        closePopupButton.addEventListener('click', () => {
+            popup.style.display = 'none';
+            popupOverlay.style.display = 'none';
+        });
+
+        popupOverlay.addEventListener('click', () => {
+            popup.style.display = 'none';
+            popupOverlay.style.display = 'none';
+        });
     </script>
 </body>
 </html> 
