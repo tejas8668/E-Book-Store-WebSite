@@ -28,20 +28,36 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Also mount root CSS and JS files as static
+app.mount("/css", StaticFiles(directory="."), name="css")
+app.mount("/js", StaticFiles(directory="."), name="js")
+
 # Serve index.html at root
 @app.get("/")
 async def read_root():
-    return FileResponse("index.html")
+    try:
+        return FileResponse("index.html")
+    except FileNotFoundError:
+        print("index.html not found in the current directory")
+        raise HTTPException(status_code=404, detail="File not found")
 
 # Serve results.html
 @app.get("/results.html")
 async def read_results():
-    return FileResponse("results.html")
+    try:
+        return FileResponse("results.html")
+    except FileNotFoundError:
+        print("results.html not found in the current directory")
+        raise HTTPException(status_code=404, detail="File not found")
 
 # Serve download.html
 @app.get("/download.html")
 async def read_download():
-    return FileResponse("download.html")
+    try:
+        return FileResponse("download.html")
+    except FileNotFoundError:
+        print("download.html not found in the current directory")
+        raise HTTPException(status_code=404, detail="File not found")
 
 class DownloadRequest(BaseModel):
     url: str
@@ -76,24 +92,49 @@ async def get_download_link(request: DownloadRequest):
         download_page_url = await get_initial_download_page(request.url)
         if not download_page_url:
             print("Could not find initial download page URL")
-            # Fallback to generate fake URL
-            fake_url = generate_fake_download_url(request.url)
-            return {"download_url": fake_url}
+            # Instead of generating fake URL, which gives "file not exist" error
+            # Use a direct document download approach
+            book_id_match = re.search(r'-d(\d+)\.html$', request.url)
+            if book_id_match:
+                book_id = book_id_match.group(1)
+                # Try PDF download format with direct access
+                return {"download_url": f"https://www.pdfdrive.com/download.php?id={book_id}"}
+            else:
+                # Use the original URL as a fallback for viewing
+                return {"download_url": request.url}
         
         # Now get the actual download link from the download page
         final_download_url = await get_final_download_url(download_page_url)
         if final_download_url:
             print(f"Found final download URL: {final_download_url}")
+            # If URL contains "download.pdf", try the alternative download.php format
+            if "download.pdf" in final_download_url:
+                id_match = re.search(r'id=(\d+)', final_download_url)
+                if id_match:
+                    book_id = id_match.group(1)
+                    return {"download_url": f"https://www.pdfdrive.com/download.php?id={book_id}"}
             return {"download_url": final_download_url}
         
-        # If we couldn't get the final URL, return the download page URL
+        # If we couldn't get the final URL, return a direct download link if possible
+        book_id_match = re.search(r'id=(\d+)', download_page_url)
+        if book_id_match:
+            book_id = book_id_match.group(1)
+            return {"download_url": f"https://www.pdfdrive.com/download.php?id={book_id}"}
+        
         print(f"Using download page URL: {download_page_url}")
         return {"download_url": download_page_url}
     except Exception as e:
         print(f"Error in get_download_link endpoint: {str(e)}")
-        # Always return a download URL even if there's an error
-        fallback_url = generate_fake_download_url(request.url)
-        return {"download_url": fallback_url}
+        # Try to extract book ID for direct download as a last resort
+        try:
+            book_id_match = re.search(r'-d(\d+)\.html$', request.url)
+            if book_id_match:
+                book_id = book_id_match.group(1)
+                return {"download_url": f"https://www.pdfdrive.com/download.php?id={book_id}"}
+        except:
+            pass
+        # If all else fails, return the original URL for viewing
+        return {"download_url": request.url}
 
 async def get_initial_download_page(book_url: str) -> str:
     """Get the URL of the download waiting page."""

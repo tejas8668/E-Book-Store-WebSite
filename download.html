@@ -204,7 +204,29 @@
                 
                 // Show popup with download link
                 if (data.download_url) {
-                    finalDownloadLink.href = data.download_url;
+                    // Add an error handler to check if the download link actually works
+                    const checkLinkStatus = async (url) => {
+                        try {
+                            // Attempt to fetch just the headers to see if the URL exists
+                            const headResponse = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+                            return true; // Link is probably valid
+                        } catch (err) {
+                            console.log('Error checking link:', err);
+                            return false; // Link is invalid
+                        }
+                    };
+                    
+                    // Modify the link to use download.php instead of download.pdf if needed
+                    let downloadUrl = data.download_url;
+                    if (downloadUrl.includes('download.pdf')) {
+                        const idMatch = downloadUrl.match(/id=(\d+)/);
+                        if (idMatch && idMatch[1]) {
+                            const bookId = idMatch[1];
+                            downloadUrl = `https://www.pdfdrive.com/download.php?id=${bookId}`;
+                        }
+                    }
+                    
+                    finalDownloadLink.href = downloadUrl;
                     
                     // Set up the download attribute and filename
                     const filename = decodeURIComponent(title || 'book') + '.pdf';
@@ -216,7 +238,7 @@
                     retryCount = 0; // Reset retry count on success
                     
                     // Open the PDF directly in a new tab as well
-                    window.open(data.download_url, '_blank');
+                    window.open(downloadUrl, '_blank');
                 } else {
                     handleError('No download URL in response');
                 }
@@ -238,7 +260,25 @@
                 downloadButton.style.display = 'inline-block';
                 downloadButton.textContent = 'Try Again';
                 retryCount = 0;
-                alert('Failed to generate download link after several attempts. Please try again later.');
+                
+                // Suggest alternative to view the book
+                const viewUrl = downloadLink.includes('/download.') ? 
+                    downloadLink.replace(/\/download\.(pdf|php).*/, '') : downloadLink;
+                    
+                alert('Could not generate download link. You can try again later or view the book online by visiting the original page.');
+                
+                // Add a new button to view the book
+                const viewButton = document.createElement('a');
+                viewButton.href = decodeURIComponent(downloadLink);
+                viewButton.className = 'back-button';
+                viewButton.style.backgroundColor = '#4CAF50';
+                viewButton.style.display = 'block';
+                viewButton.style.marginTop = '20px';
+                viewButton.textContent = 'View Book Online';
+                viewButton.target = '_blank';
+                
+                // Add the view button after the download button
+                downloadButton.parentNode.insertBefore(viewButton, downloadButton.nextSibling);
             }
         }
 
