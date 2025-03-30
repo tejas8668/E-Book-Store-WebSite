@@ -171,14 +171,18 @@
         const finalDownloadLink = document.getElementById('final-download-link');
         const closePopupButton = document.getElementById('close-popup');
 
-        downloadButton.addEventListener('click', async () => {
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
+
+        async function getDownloadLink() {
             if (!downloadLink) return;
 
             // Show loading
             loadingContainer.style.display = 'block';
             downloadButton.style.display = 'none';
-
+            
             try {
+                console.log('Calling API to get download link, attempt', retryCount + 1);
                 // Call your backend API to get the final download link
                 const response = await fetch('/api/get-download-link', {
                     method: 'POST',
@@ -191,6 +195,7 @@
                 });
 
                 const data = await response.json();
+                console.log('API response:', data);
                 
                 // Hide loading
                 loadingContainer.style.display = 'none';
@@ -200,16 +205,34 @@
                     finalDownloadLink.href = data.download_url;
                     popup.style.display = 'block';
                     popupOverlay.style.display = 'block';
+                    retryCount = 0; // Reset retry count on success
                 } else {
-                    alert('Failed to generate download link. Please try again.');
-                    downloadButton.style.display = 'inline-block';
+                    handleError('No download URL in response');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('An error occurred. Please try again.');
+                handleError(error);
+            }
+        }
+
+        function handleError(error) {
+            console.error('Error generating download link:', error);
+            
+            if (retryCount < MAX_RETRIES) {
+                retryCount++;
+                alert(`Failed to generate download link. Retrying (${retryCount}/${MAX_RETRIES})...`);
+                setTimeout(getDownloadLink, 2000); // Wait 2 seconds before retrying
+            } else {
                 loadingContainer.style.display = 'none';
                 downloadButton.style.display = 'inline-block';
+                downloadButton.textContent = 'Try Again';
+                retryCount = 0;
+                alert('Failed to generate download link after several attempts. Please try again later.');
             }
+        }
+
+        downloadButton.addEventListener('click', () => {
+            getDownloadLink();
         });
 
         // Close popup

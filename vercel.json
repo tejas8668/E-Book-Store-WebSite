@@ -6,14 +6,20 @@
             "use": "@vercel/python",
             "config": {
                 "runtime": "python3.9",
-                "installCommand": "pip install -r requirements.txt && playwright install chromium --with-deps"
+                "installCommand": "pip install -r requirements.txt && playwright install chromium --with-deps",
+                "maxLambdaSize": "50mb"
             }
         }
     ],
     "routes": [
         {
             "src": "/api/(.*)",
-            "dest": "main.py"
+            "dest": "main.py",
+            "methods": ["GET", "POST", "OPTIONS"],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type"
+            }
         },
         {
             "src": "/(.*)",
@@ -21,7 +27,14 @@
         }
     ],
     "env": {
-        "PYTHONUNBUFFERED": "1"
+        "PYTHONUNBUFFERED": "1",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
     },
-    "regions": ["bom1"]
+    "regions": ["bom1"],
+    "functions": {
+        "main.py": {
+            "memory": 2048,
+            "maxDuration": 60
+        }
+    }
 } 

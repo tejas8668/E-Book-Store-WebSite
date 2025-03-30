@@ -46,23 +46,46 @@ class DownloadRequest(BaseModel):
 @app.post("/api/get-download-link")
 async def get_download_link(request: DownloadRequest):
     try:
+        print(f"Received download link request for URL: {request.url}")
         # Use browserless mode for Vercel
         async with async_playwright() as p:
             # Launch browser in no-sandbox mode for Vercel
-            browser = await p.chromium.launch(headless=True, args=['--no-sandbox'])
+            print("Launching browser...")
+            browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
             context = await browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                viewport={'width': 1280, 'height': 800}
             )
             page = await context.new_page()
             
             try:
                 print(f"Navigating to: {request.url}")
                 # Add timeout for navigation
-                await page.goto(request.url, timeout=60000)
+                await page.goto(request.url, timeout=60000, wait_until="networkidle")
+                
+                # Take screenshot for debugging (in development)
+                # await page.screenshot(path="page.png")
+                
+                print("Page loaded, page title:", await page.title())
                 
                 # Wait for the download button to appear with longer timeout
                 print("Waiting for download button...")
-                download_button = await page.wait_for_selector('a[href*="download"]', state="visible", timeout=60000)
+                selectors = [
+                    'a[href*="download"]', 
+                    'a[id="download-button-link"]',
+                    'a[class*="download"]'
+                ]
+                
+                download_button = None
+                for selector in selectors:
+                    try:
+                        print(f"Trying selector: {selector}")
+                        download_button = await page.wait_for_selector(selector, state="visible", timeout=20000)
+                        if download_button:
+                            print(f"Found download button with selector: {selector}")
+                            break
+                    except Exception as e:
+                        print(f"Selector {selector} failed: {str(e)}")
                 
                 if download_button:
                     print("Download button found!")
@@ -70,12 +93,22 @@ async def get_download_link(request: DownloadRequest):
                     download_url = await download_button.get_attribute('href')
                     print(f"Download URL: {download_url}")
                     
-                    # Construct the full URL
-                    full_download_url = f"https://www.pdfdrive.com{download_url}"
-                    
-                    return {"download_url": full_download_url}
+                    # Ensure we have a valid download URL
+                    if download_url and download_url.startswith('/'):
+                        # Construct the full URL
+                        full_download_url = f"https://www.pdfdrive.com{download_url}"
+                        print(f"Full download URL: {full_download_url}")
+                        return {"download_url": full_download_url}
+                    else:
+                        print(f"Invalid download URL format: {download_url}")
+                        raise HTTPException(status_code=400, detail=f"Invalid download URL format: {download_url}")
                 else:
-                    print("Download button not found")
+                    # Try to get page content for debugging
+                    page_content = await page.content()
+                    print(f"Page content length: {len(page_content)}")
+                    print(f"Page content snippet: {page_content[:500]}...")
+                    
+                    print("Download button not found after trying all selectors")
                     raise HTTPException(status_code=404, detail="Download button not found")
                     
             except Exception as e:
