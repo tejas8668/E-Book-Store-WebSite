@@ -14,14 +14,6 @@ import random
 import string
 import time
 
-# Import Playwright but with try/except to handle environments where it might not be available
-try:
-    from playwright.async_api import async_playwright
-    PLAYWRIGHT_AVAILABLE = True
-except ImportError:
-    PLAYWRIGHT_AVAILABLE = False
-    print("Playwright not available, will use fallback methods")
-
 app = FastAPI()
 
 # Enable CORS
@@ -75,149 +67,101 @@ def generate_fake_download_url(book_url):
     # Return a simulated download URL
     return f"https://www.pdfdrive.com/download.pdf?id={book_id}&token={download_token}&h={int(time.time())}"
 
-# Try to get download link using Playwright
-async def get_playwright_download_link(url):
-    if not PLAYWRIGHT_AVAILABLE:
-        print("Playwright not available, cannot use this method")
-        return None
-    
-    print("Attempting to use Playwright to get download link")
-    try:
-        async with async_playwright() as p:
-            # Launch browser with minimal Vercel-compatible settings
-            browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
-            context = await browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                viewport={'width': 1280, 'height': 800}
-            )
-            
-            # Create a new page
-            page = await context.new_page()
-            
-            try:
-                # Navigate to URL with timeout
-                print(f"Navigating to {url} with Playwright")
-                await page.goto(url, timeout=30000, wait_until="networkidle")
-                
-                # Look for download button 
-                print("Looking for download button with Playwright")
-                selectors = [
-                    'a#download-button-link',
-                    'a[href*="download"]',
-                    'a[class*="download"]'
-                ]
-                
-                download_button = None
-                for selector in selectors:
-                    try:
-                        download_button = await page.wait_for_selector(selector, state="visible", timeout=5000)
-                        if download_button:
-                            print(f"Found download button with selector: {selector}")
-                            break
-                    except:
-                        print(f"Selector {selector} not found with Playwright")
-                
-                if download_button:
-                    # Extract download URL
-                    download_url = await download_button.get_attribute('href')
-                    print(f"Found download URL with Playwright: {download_url}")
-                    
-                    # Format URL if needed
-                    if download_url and download_url.startswith('/'):
-                        full_url = f"https://www.pdfdrive.com{download_url}"
-                        return full_url
-                    
-                    return download_url
-                else:
-                    print("No download button found with Playwright")
-                    return None
-            except Exception as e:
-                print(f"Error in Playwright page operation: {str(e)}")
-                return None
-            finally:
-                await browser.close()
-    except Exception as e:
-        print(f"Error initializing Playwright: {str(e)}")
-        return None
-
 @app.post("/api/get-download-link")
 async def get_download_link(request: DownloadRequest):
     print(f"Received download link request for URL: {request.url}")
     
-    # Try Playwright method first if available
-    if PLAYWRIGHT_AVAILABLE:
-        print("Trying Playwright method first")
-        playwright_link = await get_playwright_download_link(request.url)
-        if playwright_link:
-            print(f"Successfully got download link via Playwright: {playwright_link}")
-            return {"download_url": playwright_link}
-    
-    # If Playwright failed or isn't available, try BeautifulSoup method
-    try:
-        print("Trying BeautifulSoup method")
-        # Create a session
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Connection': 'keep-alive',
-            'Referer': 'https://www.pdfdrive.com/',
-        }
-        
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            print(f"Fetching page: {request.url}")
-            async with session.get(request.url, headers=headers) as response:
-                if response.status != 200:
-                    print(f"Failed to fetch page. Status: {response.status}")
-                    print("Using fallback method")
-                    fake_download_url = generate_fake_download_url(request.url)
-                    return {"download_url": fake_download_url}
-                
-                html = await response.text()
-                print(f"Page content length: {len(html)}")
+    # Try to get actual download link with multiple methods
+    for attempt in range(3):  # Try up to 3 times with different headers
+        try:
+            print(f"Attempt {attempt+1} to fetch download link")
             
-            # Parse the HTML content
-            soup = BeautifulSoup(html, 'html.parser')
-            
-            # Look for download button
-            download_button = None
-            selectors = [
-                'a#download-button-link',
-                'a[href*="download"]',
-                'a[class*="download"]'
+            # Create session with different user agents for each attempt
+            user_agents = [
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Safari/605.1.15',
+                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'
             ]
             
-            for selector in selectors:
-                try:
-                    print(f"Trying selector with BeautifulSoup: {selector}")
-                    elements = soup.select(selector)
-                    if elements:
-                        download_button = elements[0]
-                        print(f"Found download button with selector: {selector}")
-                        break
-                except Exception as e:
-                    print(f"Selector {selector} failed with BeautifulSoup: {str(e)}")
+            headers = {
+                'User-Agent': user_agents[attempt % len(user_agents)],
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Connection': 'keep-alive',
+                'Referer': 'https://www.pdfdrive.com/',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
             
-            if download_button:
-                print("Download button found with BeautifulSoup!")
-                # Get the href attribute
-                download_url = download_button.get('href', '')
-                print(f"Download URL from BeautifulSoup: {download_url}")
+            timeout = aiohttp.ClientTimeout(total=20)  # Shorter timeout for faster fallback
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                print(f"Fetching page: {request.url}")
+                async with session.get(request.url, headers=headers) as response:
+                    if response.status != 200:
+                        print(f"Failed to fetch page. Status: {response.status}")
+                        continue  # Try again with different headers
+                    
+                    html = await response.text()
+                    print(f"Successfully fetched page content, length: {len(html)}")
                 
-                # Ensure we have a valid download URL
-                if download_url and download_url.startswith('/'):
-                    # Construct the full URL
-                    full_download_url = f"https://www.pdfdrive.com{download_url}"
-                    print(f"Full download URL: {full_download_url}")
-                    return {"download_url": full_download_url}
-            
-            print("No valid download link found with BeautifulSoup, using fallback")
-    except Exception as e:
-        print(f"Error in BeautifulSoup method: {str(e)}")
+                # Parse the HTML content
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # Try multiple selectors to find download button
+                selectors = [
+                    'a#download-button-link',
+                    'a[href*="download"]',
+                    'a[class*="download"]',
+                    'a.btn-success',
+                    'a.btn-primary',
+                    'form[action*="download"]'
+                ]
+                
+                # Look for any elements that might be download buttons
+                for selector in selectors:
+                    try:
+                        print(f"Trying selector: {selector}")
+                        elements = soup.select(selector)
+                        
+                        if elements:
+                            for element in elements:
+                                # Try to get download URL
+                                if element.name == 'a':
+                                    download_url = element.get('href', '')
+                                elif element.name == 'form':
+                                    download_url = element.get('action', '')
+                                else:
+                                    continue
+                                
+                                print(f"Found potential download URL: {download_url}")
+                                
+                                # Validate and format URL
+                                if download_url and download_url.startswith('/'):
+                                    full_download_url = f"https://www.pdfdrive.com{download_url}"
+                                    print(f"Generated full download URL: {full_download_url}")
+                                    return {"download_url": full_download_url}
+                    except Exception as e:
+                        print(f"Error with selector {selector}: {str(e)}")
+                
+                # If we've found nothing, look for any link that could be a download
+                all_links = soup.find_all('a')
+                for link in all_links:
+                    href = link.get('href', '')
+                    text = link.get_text().lower()
+                    if (('download' in href.lower() or 'download' in text) and 
+                        href and not href.startswith('#')):
+                        print(f"Found potential download link: {href}")
+                        if href.startswith('/'):
+                            href = f"https://www.pdfdrive.com{href}"
+                        elif not href.startswith('http'):
+                            href = f"https://www.pdfdrive.com/{href}"
+                        return {"download_url": href}
+                
+        except Exception as e:
+            print(f"Error in attempt {attempt+1}: {str(e)}")
     
-    # If all methods failed, use fallback
-    print("All methods failed or skipped, using fallback download URL")
+    # If all attempts failed, generate a fake download URL
+    print("All attempts to find download link failed, using fallback")
     fake_download_url = generate_fake_download_url(request.url)
     print(f"Generated fallback download URL: {fake_download_url}")
     return {"download_url": fake_download_url}
