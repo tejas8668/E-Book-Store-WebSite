@@ -6,7 +6,8 @@
             "use": "@vercel/python",
             "config": {
                 "runtime": "python3.9",
-                "maxLambdaSize": "50mb"
+                "maxLambdaSize": "50mb",
+                "installCommand": "pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=$HOME/cache/ms-playwright playwright install chromium --with-deps"
             }
         }
     ],
@@ -27,7 +28,8 @@
     ],
     "env": {
         "PYTHONUNBUFFERED": "1",
-        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "PLAYWRIGHT_BROWSERS_PATH": "/tmp"
     },
     "regions": ["bom1"]
 } 
